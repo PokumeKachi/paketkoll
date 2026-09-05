@@ -14,5 +14,8 @@ pub use operations::PkgInstruction;
 pub use operations::PkgInstructions;
 pub use operations::PkgOp;
 
+pub mod fs_rules;
+pub use fs_rules::*;
+
 mod misc;
 mod operations;

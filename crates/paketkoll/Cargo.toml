@@ -36,6 +36,7 @@ color-eyre.workspace = true
 compact_str.workspace = true
 eyre.workspace = true
 ignore.workspace = true
+konfigkoll_types = { version = "0.2.11", path = "../konfigkoll_types" }
 os_info.workspace = true
 paketkoll_core = { version = "0.5.15", path = "../paketkoll_core" }
 paketkoll_types = { version = "0.2.9", path = "../paketkoll_types" }

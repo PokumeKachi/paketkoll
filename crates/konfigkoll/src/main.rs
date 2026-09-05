@@ -3,7 +3,6 @@ use apply::create_applicator;
 use camino::Utf8Path;
 use camino::Utf8PathBuf;
 use clap::Parser;
-use compact_str::CompactString;
 use eyre::OptionExt;
 use eyre::WrapErr;
 use itertools::Itertools;
@@ -170,13 +169,7 @@ async fn run_main(cli: Cli) -> Result<(), eyre::Error> {
     // Do FS scan
     tracing::info!("Starting filesystem scan background job");
     let fs_instructions_sys = {
-        let ignores: Vec<CompactString> = script_engine
-            .state()
-            .commands()
-            .fs_ignores
-            .iter()
-            .cloned()
-            .collect();
+        let rules = script_engine.state().commands().fs_rules.clone();
         let trust_mtime = cli.trust_mtime;
         let interner = interner.clone();
         let backends_files = backend_files.clone();
@@ -189,7 +182,7 @@ async fn run_main(cli: Cli) -> Result<(), eyre::Error> {
                 &interner,
                 &backends_files,
                 &package_map,
-                &ignores,
+                &rules,
                 trust_mtime,
             )
         })

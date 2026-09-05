@@ -1,10 +1,10 @@
 //! Scan the file system
 
 use ahash::AHashSet;
-use compact_str::CompactString;
 use dashmap::DashMap;
 use eyre::WrapErr;
 use itertools::Itertools;
+use konfigkoll_types::fs_rules::{RuleTrie};
 use konfigkoll_types::FsInstruction;
 use ouroboros::self_referencing;
 use paketkoll_core::config::CheckAllFilesConfiguration;
@@ -36,7 +36,7 @@ pub(crate) fn scan_fs(
     interner: &Arc<Interner>,
     backend: &Arc<dyn Files>,
     package_map: &PackageMap,
-    ignores: &[CompactString],
+    rules: &RuleTrie,
     trust_mtime: bool,
 ) -> eyre::Result<(ScanResult, Vec<FsInstruction>)> {
     tracing::debug!("Scanning filesystem");
@@ -61,7 +61,7 @@ pub(crate) fn scan_fs(
         .build()?;
     let unexpected_config = CheckAllFilesConfiguration::builder()
         .canonicalize_paths(backend.may_need_canonicalization())
-        .ignored_paths(ignores.to_owned())
+        .rules(rules.clone())
         .build()?;
 
     let issues = mismatching_and_unexpected_files(

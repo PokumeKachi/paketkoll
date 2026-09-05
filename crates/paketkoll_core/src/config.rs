@@ -1,14 +1,14 @@
 //! Configuration for [`crate::file_ops`] and [`crate::package_ops`]
 
-use compact_str::CompactString;
+use konfigkoll_types::fs_rules::RuleTrie;
 
 /// Configuration for [`crate::file_ops::check_all_files`]
 #[derive(Debug, derive_builder::Builder)]
 #[non_exhaustive]
 pub struct CheckAllFilesConfiguration {
     /// Ignored paths (globs). Only applicable to some operations.
-    #[builder(default = "vec![]")]
-    pub ignored_paths: Vec<CompactString>,
+    #[builder(default = "RuleTrie::default()")]
+    pub rules: RuleTrie,
     /// Should paths be canonicalized before checking? (This is needed on Debian
     /// for example)
     #[builder(default = "false")]

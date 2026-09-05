@@ -1,11 +1,11 @@
 //! Contain file checking functionality
 
-use compact_str::CompactString;
 use eyre::WrapErr;
 use ignore::Match;
 use ignore::WalkBuilder;
 use ignore::WalkState;
 use ignore::overrides::OverrideBuilder;
+use konfigkoll_types::fs_rules::{FilesystemRule, RuleTrie};
 use paketkoll_types::backend::OriginalFileQuery;
 use paketkoll_types::backend::OriginalFilesResult;
 use paketkoll_types::files::FileEntry;
@@ -142,7 +142,7 @@ pub fn mismatching_and_unexpected_files<'a>(
 ) -> eyre::Result<Vec<(Option<PackageRef>, Issue)>> {
     tracing::debug!("Building ignores");
     // Build glob set of ignores
-    let overrides = build_ignore_overrides(&unexpected_cfg.ignored_paths)?;
+    let overrides = build_ignore_overrides(&unexpected_cfg.rules)?;
 
     tracing::debug!("Walking file system");
     let walker = WalkBuilder::new("/")
@@ -279,17 +279,64 @@ fn find_missing_files(
 }
 
 #[doc(hidden)]
-/// Build the ignore overrides for the given configuration
-pub fn build_ignore_overrides(
-    ignored_paths: &Vec<CompactString>,
-) -> eyre::Result<ignore::overrides::Override> {
+pub fn build_ignore_overrides(rules: &RuleTrie) -> eyre::Result<ignore::overrides::Override> {
     let mut builder = OverrideBuilder::new("/");
-    for pattern in BUILTIN_IGNORES {
-        builder.add(pattern).expect("Builtin ignore failed");
+
+    // ----------------------------------------------------------------------
+    // 1. User rules (include/exclude) with longest‑prefix wins.
+    //    More specific (longer) paths are added first so they are overridden
+    //    by the default excludes if they conflict.
+    // ----------------------------------------------------------------------
+    let mut rule_list = rules.iter_rules();
+    rule_list.sort_by(|a, b| a.0.len().cmp(&b.0.len()));  // ascending length
+
+    for (path, rule) in rule_list {
+        let (dir_pattern, children_pattern) = if path == "/" {
+            ("/".to_string(), "/**".to_string())
+        } else {
+            (path.clone(), format!("{}/**", path))
+        };
+
+        // Exclude → blacklist, Include → whitelist ("!")
+        let dir_rule = match rule {
+            FilesystemRule::Exclude => dir_pattern,
+            FilesystemRule::Include => format!("!{}", dir_pattern),
+        };
+        builder.add(&dir_rule)?;
+
+        let children_rule = match rule {
+            FilesystemRule::Exclude => children_pattern,
+            FilesystemRule::Include => format!("!{}", children_pattern),
+        };
+        builder.add(&children_rule)?;
     }
-    for pattern in ignored_paths {
-        builder.add(&("!".to_string() + pattern.as_str()))?;
+
+    // ----------------------------------------------------------------------
+    // 2. Default excludes – added LAST so they always win.
+    //    These are never managed by packages and must be skipped.
+    // ----------------------------------------------------------------------
+    const DEFAULT_EXCLUDES: &[&str] = &[
+        "/proc/**",
+        "/sys/**",
+        "/dev/**",
+        "/tmp/**",
+        "/run/**",
+        "/var/tmp/**",
+        "/boot/**",
+        "/nix/**",
+        "/home/**",
+        "/media/**",
+        "/mnt/**",
+        "/root/**",
+        "/lost+found/**",
+        "/.snapshots/**",
+        "/var/cache/**",
+        "/var/log/**",
+    ];
+    for pattern in DEFAULT_EXCLUDES {
+        builder.add(pattern)?;   // ignore pattern (exclude)
     }
+
     Ok(builder.build()?)
 }
 
@@ -389,18 +436,3 @@ fn interpret_ignore_error(ignore_err: ignore::Error, context: Option<PathBuf>) -
         },
     }
 }
-
-/// Built in ignores for [`check_all_files`]
-const BUILTIN_IGNORES: &[&str] = &[
-    "!**/lost+found",
-    "!/dev/",
-    "!/home/",
-    "!/media/",
-    "!/mnt/",
-    "!/proc/",
-    "!/root/",
-    "!/run/",
-    "!/sys/",
-    "!/tmp/",
-    "!/var/tmp/",
-];

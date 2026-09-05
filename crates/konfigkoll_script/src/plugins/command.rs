@@ -6,9 +6,8 @@
 use super::error::KResult;
 use super::settings::Settings;
 use crate::types::Phase;
-use ahash::AHashSet;
+use konfigkoll_types::fs_rules::{FilesystemRule, RuleTrie};
 use camino::Utf8PathBuf;
-use compact_str::CompactString;
 use eyre::WrapErr;
 use konfigkoll_types::FileContents;
 use konfigkoll_types::FsInstruction;
@@ -37,8 +36,8 @@ pub struct Commands {
     pub(crate) phase: Phase,
     /// Base path to files directory
     pub(crate) base_files_path: Utf8PathBuf,
-    /// Set of file system ignores
-    pub fs_ignores: AHashSet<CompactString>,
+    /// Set of file system rules
+    pub fs_rules: RuleTrie,
     /// Queue of file system instructions
     pub fs_actions: Vec<FsInstruction>,
     /// Queue of package instructions
@@ -53,7 +52,7 @@ impl Commands {
         Self {
             phase: Phase::SystemDiscovery,
             base_files_path,
-            fs_ignores: AHashSet::new(),
+            fs_rules: RuleTrie::new(),
             fs_actions: Vec::new(),
             package_actions: PkgInstructions::new(),
             settings,
@@ -86,16 +85,36 @@ impl Commands {
 
 /// Rune API
 impl Commands {
+    /// Include a path, so that it will be managed (even if an ancestor is excluded).
+    #[rune::function(keep)]
+    pub fn include_path(&mut self, path: &str) -> KResult<()> {
+        if self.phase != Phase::Ignores {
+            return Err(eyre::eyre!("Can only include paths during the 'ignores' phase").into());
+        }
+        Self::verify_path(path)?;
+        self.fs_rules.insert(path, FilesystemRule::Include);
+        Ok(())
+    }
+
+    /// Exclude a path, so that it will be ignored (even if an ancestor is included).
+    #[rune::function(keep)]
+    pub fn exclude_path(&mut self, path: &str) -> KResult<()> {
+        if self.phase != Phase::Ignores {
+            return Err(eyre::eyre!("Can only exclude paths during the 'ignores' phase").into());
+        }
+        Self::verify_path(path)?;
+        self.fs_rules.insert(path, FilesystemRule::Exclude);
+        Ok(())
+    }
+
     /// Ignore a path, preventing it from being scanned for differences
     #[rune::function(keep)]
     pub fn ignore_path(&mut self, ignore: &str) -> KResult<()> {
         if self.phase != Phase::Ignores {
             return Err(eyre::eyre!("Can only ignore paths during the 'ignores' phase").into());
         }
-        if !self.fs_ignores.insert(ignore.into()) {
-            tracing::warn!("Ignoring path '{}' multiple times", ignore);
-        }
-        Ok(())
+        tracing::warn!(target: "paketkoll", "ignore_path is deprecated, use exclude_path instead");
+        self.exclude_path(ignore)
     }
 
     /// Install a package with the given package manager.
@@ -370,6 +389,8 @@ impl Commands {
 pub(crate) fn module() -> Result<Module, ContextError> {
     let mut m = Module::from_meta(module_meta)?;
     m.ty::<Commands>()?;
+    m.function_meta(Commands::include_path__meta)?;
+    m.function_meta(Commands::exclude_path__meta)?;
     m.function_meta(Commands::ignore_path__meta)?;
     m.function_meta(Commands::add_pkg__meta)?;
     m.function_meta(Commands::remove_pkg__meta)?;

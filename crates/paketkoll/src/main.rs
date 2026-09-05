@@ -3,6 +3,7 @@
 use ahash::AHashSet;
 use clap::Parser;
 use eyre::WrapErr;
+use konfigkoll_types::fs_rules::{RuleTrie};
 use paketkoll::cli::Cli;
 use paketkoll::cli::Commands;
 use paketkoll::cli::Format;
@@ -212,7 +213,7 @@ fn run_file_checks(cli: &Cli) -> eyre::Result<Exit> {
             &cli.try_into()?,
             &{
                 let mut builder = CheckAllFilesConfiguration::builder();
-                builder.ignored_paths(cli.ignore.clone());
+                builder.rules(RuleTrie::from_ignores(&cli.ignore));
                 builder.canonicalize_paths(canonicalize);
                 builder.build()?
             },
@@ -233,22 +234,21 @@ fn run_file_checks(cli: &Cli) -> eyre::Result<Exit> {
         found_issues.sort_by_key(key_extractor);
     }
 
+    // Post‑process ignores for the Check command (it doesn't have them built in).
     if let Commands::Check { .. } = cli.command
         && !cli.ignore.is_empty()
     {
-        // Do post-processing of ignores as the check command doesn't have that built
-        // in.
-        let ignores = file_ops::build_ignore_overrides(&cli.ignore)?;
+        // Build a trie from CLI ignores and then create ignore overrides.
+        let rules = RuleTrie::from_ignores(&cli.ignore);
+        let ignores = file_ops::build_ignore_overrides(&rules)?;
+
         found_issues.retain(|(_, issue)| {
             let path = issue.path();
             match ignores.matched(path, path.is_dir()) {
-                ignore::Match::None => (),
-                ignore::Match::Ignore(_) => {
-                    return false;
-                }
-                ignore::Match::Whitelist(_) => (),
+                ignore::Match::None => true,
+                ignore::Match::Ignore(_) => false,
+                ignore::Match::Whitelist(_) => true,
             }
-            true
         });
     }
 
@@ -263,8 +263,6 @@ fn run_file_checks(cli: &Cli) -> eyre::Result<Exit> {
                     if let Some(pkg) = pkg {
                         write!(stdout, "{pkg}: ")?;
                     }
-                    // Prefer to not do any escaping. This doesn't assume unicode.
-                    // Also, it is faster.
                     stdout.write_all(issue.path().as_os_str().as_bytes())?;
                     writeln!(stdout, " {kind}")?;
                 }

@@ -90,6 +90,8 @@ tar.workspace = true
 tracing.workspace = true
 xz2 = { workspace = true, optional = true }
 zstd = { workspace = true, optional = true }
+konfigkoll_script = { version = "0.1.15", path = "../konfigkoll_script" }
+konfigkoll_types = { version = "0.2.11", path = "../konfigkoll_types" }
 
 [dev-dependencies]
 indoc.workspace = true
