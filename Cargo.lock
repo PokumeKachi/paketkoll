@@ -2226,7 +2226,6 @@ dependencies = [
  "hashify",
  "ignore",
  "indoc",
- "konfigkoll_script",
  "konfigkoll_types",
  "libc",
  "md-5",

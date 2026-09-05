@@ -90,3 +90,47 @@ impl RuleTrie {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn exclude_path_matches_children() {
+        let mut rules = RuleTrie::new();
+        rules.insert("/foo", FilesystemRule::Exclude);
+
+        assert_eq!(rules.query("/foo"), Some(FilesystemRule::Exclude));
+        assert_eq!(rules.query("/foo/bar"), Some(FilesystemRule::Exclude));
+        assert_eq!(rules.query("/foo/bar/baz"), Some(FilesystemRule::Exclude));
+
+        assert_eq!(rules.query("/foobar"), None);
+        assert_eq!(rules.query("/bar"), None);
+    }
+
+    #[test]
+    fn more_specific_rule_wins() {
+        let mut rules = RuleTrie::new();
+
+        rules.insert("/foo", FilesystemRule::Exclude);
+        rules.insert("/foo/bar", FilesystemRule::Include);
+
+        assert_eq!(rules.query("/foo"), Some(FilesystemRule::Exclude));
+        assert_eq!(rules.query("/foo/bar"), Some(FilesystemRule::Include));
+        assert_eq!(rules.query("/foo/bar/baz"), Some(FilesystemRule::Include));
+        assert_eq!(rules.query("/foo/baz"), Some(FilesystemRule::Exclude));
+    }
+
+    #[test]
+    fn include_then_exclude() {
+        let mut rules = RuleTrie::new();
+
+        rules.insert("/foo", FilesystemRule::Include);
+        rules.insert("/foo/bar", FilesystemRule::Exclude);
+
+        assert_eq!(rules.query("/foo"), Some(FilesystemRule::Include));
+        assert_eq!(rules.query("/foo/bar"), Some(FilesystemRule::Exclude));
+        assert_eq!(rules.query("/foo/bar/baz"), Some(FilesystemRule::Exclude));
+        assert_eq!(rules.query("/foo/baz"), Some(FilesystemRule::Include));
+    }
+}

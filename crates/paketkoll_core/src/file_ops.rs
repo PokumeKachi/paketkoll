@@ -288,7 +288,7 @@ pub fn build_ignore_overrides(rules: &RuleTrie) -> eyre::Result<ignore::override
     //    by the default excludes if they conflict.
     // ----------------------------------------------------------------------
     let mut rule_list = rules.iter_rules();
-    rule_list.sort_by(|a, b| a.0.len().cmp(&b.0.len()));  // ascending length
+    rule_list.sort_by(|a, b| a.0.len().cmp(&b.0.len())); // ascending length
 
     for (path, rule) in rule_list {
         let (dir_pattern, children_pattern) = if path == "/" {
@@ -299,14 +299,14 @@ pub fn build_ignore_overrides(rules: &RuleTrie) -> eyre::Result<ignore::override
 
         // Exclude → blacklist, Include → whitelist ("!")
         let dir_rule = match rule {
-            FilesystemRule::Exclude => dir_pattern,
-            FilesystemRule::Include => format!("!{}", dir_pattern),
+            FilesystemRule::Include => dir_pattern,
+            FilesystemRule::Exclude => format!("!{}", dir_pattern),
         };
         builder.add(&dir_rule)?;
 
         let children_rule = match rule {
-            FilesystemRule::Exclude => children_pattern,
-            FilesystemRule::Include => format!("!{}", children_pattern),
+            FilesystemRule::Include => children_pattern,
+            FilesystemRule::Exclude => format!("!{}", children_pattern),
         };
         builder.add(&children_rule)?;
     }
@@ -316,25 +316,25 @@ pub fn build_ignore_overrides(rules: &RuleTrie) -> eyre::Result<ignore::override
     //    These are never managed by packages and must be skipped.
     // ----------------------------------------------------------------------
     const DEFAULT_EXCLUDES: &[&str] = &[
-        "/proc/**",
-        "/sys/**",
-        "/dev/**",
-        "/tmp/**",
-        "/run/**",
-        "/var/tmp/**",
-        "/boot/**",
-        "/nix/**",
-        "/home/**",
-        "/media/**",
-        "/mnt/**",
-        "/root/**",
-        "/lost+found/**",
-        "/.snapshots/**",
-        "/var/cache/**",
-        "/var/log/**",
+        "!/proc/**",
+        "!/sys/**",
+        "!/dev/**",
+        "!/tmp/**",
+        "!/run/**",
+        "!/var/tmp/**",
+        "!/boot/**",
+        "!/nix/**",
+        "!/home/**",
+        "!/media/**",
+        "!/mnt/**",
+        "!/root/**",
+        "!/lost+found/**",
+        "!/.snapshots/**",
+        "!/var/cache/**",
+        "!/var/log/**",
     ];
     for pattern in DEFAULT_EXCLUDES {
-        builder.add(pattern)?;   // ignore pattern (exclude)
+        builder.add(pattern)?; // ignore pattern (exclude)
     }
 
     Ok(builder.build()?)
@@ -435,4 +435,66 @@ fn interpret_ignore_error(ignore_err: ignore::Error, context: Option<PathBuf>) -
             }
         },
     }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use konfigkoll_types::fs_rules::{FilesystemRule, RuleTrie};
+
+    #[test]
+    fn exclude_is_ignored() {
+        let mut rules = RuleTrie::new();
+        rules.insert("/foo", FilesystemRule::Exclude);
+
+        let overrides = build_ignore_overrides(&rules).unwrap();
+
+        assert!(matches!(
+            overrides.matched("/foo", true),
+            ignore::Match::Ignore(_)
+        ));
+
+        assert!(matches!(
+            overrides.matched("/foo/bar", false),
+            ignore::Match::Ignore(_)
+        ));
+    }
+
+    #[test]
+    fn include_is_whitelisted() {
+        let mut rules = RuleTrie::new();
+        rules.insert("/foo", FilesystemRule::Include);
+
+        let overrides = build_ignore_overrides(&rules).unwrap();
+
+        assert!(matches!(
+            overrides.matched("/foo", true),
+            ignore::Match::Whitelist(_)
+        ));
+    }
+}
+
+#[test]
+fn include_can_override_exclude() {
+    let mut rules = RuleTrie::new();
+
+    rules.insert("/foo", FilesystemRule::Exclude);
+    rules.insert("/foo/bar", FilesystemRule::Include);
+
+    let overrides = build_ignore_overrides(&rules).unwrap();
+
+    assert!(matches!(
+        overrides.matched("/foo", true),
+        ignore::Match::Ignore(_)
+    ));
+
+    assert!(matches!(
+        overrides.matched("/foo/bar", true),
+        ignore::Match::Whitelist(_)
+    ));
+
+    assert!(matches!(
+        overrides.matched("/foo/bar/baz", false),
+        ignore::Match::Whitelist(_)
+    ));
 }
