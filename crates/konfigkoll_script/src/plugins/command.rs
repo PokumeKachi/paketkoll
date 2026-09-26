@@ -94,10 +94,9 @@ impl Commands {
             let ancestor = ancestors.contains(&path);
 
             if whitelisted || ancestor {
-                if !ft.is_dir() {
-                    continue;
+                if ft.is_dir() {
+                    Self::collect_ignored(&path, literals, globs, ancestors, out)?;
                 }
-                Self::collect_ignored(&path, literals, globs, ancestors, out)?;
             } else {
                 if ft.is_dir() {
                     let mut child = path.clone().into_os_string();
