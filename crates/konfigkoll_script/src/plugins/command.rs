@@ -216,6 +216,15 @@ impl Commands {
 
         Ok(())
     }
+    /// Debug helper: print every path currently in the ignore set.
+    #[rune::function(keep)]
+    pub fn debug_print_ignores(&self) {
+        let mut v: Vec<_> = self.fs_ignores.iter().collect();
+        v.sort();
+        for ig in v {
+            println!("IGNORE: {}", ig);
+        }
+    }
 
     /// Install a package with the given package manager.
     ///
@@ -491,6 +500,7 @@ pub(crate) fn module() -> Result<Module, ContextError> {
     m.ty::<Commands>()?;
     m.function_meta(Commands::ignore_path__meta)?;
     m.function_meta(Commands::ignore_paths_except__meta)?;
+    m.function_meta(Commands::debug_print_ignores__meta)?;
     m.function_meta(Commands::add_pkg__meta)?;
     m.function_meta(Commands::remove_pkg__meta)?;
     m.function_meta(Commands::rm__meta)?;
