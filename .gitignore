@@ -10,3 +10,7 @@ heaptrack.*
 memory-profiling_*
 perf.data
 perf.data.old
+/pkg/
+/src/
+/*.pkg.tar.*
+/*.pkg.tar.*.sig
