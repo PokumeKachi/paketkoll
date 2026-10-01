@@ -174,7 +174,7 @@ impl Commands {
                 .into());
             }
             if w.contains("..") {
-                return Err(eyre::eyre!("The path {w} in the whitelist contains '..'" ).into());
+                return Err(eyre::eyre!("The path {w} in the whitelist contains '..'").into());
             }
 
             let abs = search_path.join(w);
@@ -341,9 +341,7 @@ impl Commands {
             Ok(v) => v,
             Err(e) => {
                 tracing::error!("Failed to read file contents for '{path}': {e}");
-                return Err(
-                    eyre::eyre!("Failed to read file contents for '{path}': {e}").into(),
-                );
+                return Err(eyre::eyre!("Failed to read file contents for '{path}': {e}").into());
             }
         };
         self.fs_actions.push(FsInstruction {
