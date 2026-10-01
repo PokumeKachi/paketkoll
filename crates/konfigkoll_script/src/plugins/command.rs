@@ -190,8 +190,11 @@ impl Commands {
             }
 
             if w.contains(['*', '?', '[']) {
-                let pat = Pattern::new(abs.to_str().unwrap())
-                    .wrap_err("Invalid glob pattern in whitelist")?;
+                let pat = Pattern::new(
+                    abs.to_str()
+                        .expect("path derived from &str is always valid UTF-8"),
+                )
+                .wrap_err("Invalid glob pattern in whitelist")?;
                 globs.push(pat);
             } else {
                 literals.insert(abs);
