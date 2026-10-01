@@ -162,7 +162,7 @@ impl Commands {
         let mut globs: Vec<Pattern> = Vec::new();
         let mut ancestors: HashSet<PathBuf> = HashSet::new();
 
-        for w in &whitelist {
+        for w in whitelist {
             let w = w.trim_end_matches('/');
             if w.is_empty() {
                 continue;
