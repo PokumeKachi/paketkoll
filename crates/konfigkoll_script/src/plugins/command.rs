@@ -111,10 +111,10 @@ impl Commands {
 
     fn verify_path(path: &str) -> eyre::Result<()> {
         if path.contains("..") {
-            return Err(eyre::eyre!("Path {} contains '..'", path));
+            return Err(eyre::eyre!("Path {path} contains '..'"));
         }
         if !path.starts_with('/') {
-            return Err(eyre::eyre!("Path {} is not absolute", path));
+            return Err(eyre::eyre!("Path {path} is not absolute"));
         }
         Ok(())
     }
@@ -129,7 +129,7 @@ impl Commands {
             return Err(eyre::eyre!("Can only ignore paths during the 'ignores' phase").into());
         }
         if !self.fs_ignores.insert(ignore.into()) {
-            tracing::warn!("Ignoring path '{}' multiple times", ignore);
+            tracing::warn!("Ignoring path '{ignore}' multiple times");
         }
         Ok(())
     }
@@ -155,7 +155,7 @@ impl Commands {
         let search_path = PathBuf::from(search_dir);
         if !search_path.is_dir() {
             return Err(
-                eyre::eyre!("The path {} must be an existing directory", search_dir).into(),
+                eyre::eyre!("The path {search_dir} must be an existing directory").into(),
             );
         }
 
@@ -171,14 +171,12 @@ impl Commands {
             }
             if w.starts_with('/') {
                 return Err(eyre::eyre!(
-                    "The path {} in the whitelist is not relative to {}",
-                    w,
-                    search_dir
+                    "The path {w} in the whitelist is not relative to {search_dir}"
                 )
                 .into());
             }
             if w.contains("..") {
-                return Err(eyre::eyre!("The path {} in the whitelist contains '..'", w).into());
+                return Err(eyre::eyre!("The path {w} in the whitelist contains '..'" ).into());
             }
 
             let abs = search_path.join(w);
@@ -222,7 +220,7 @@ impl Commands {
         let mut v: Vec<_> = self.fs_ignores.iter().collect();
         v.sort();
         for ig in v {
-            println!("IGNORE: {}", ig);
+            println!("IGNORE: {ig}");
         }
     }
 
@@ -239,7 +237,7 @@ impl Commands {
         }
         let backend = Backend::from_str(package_manager).wrap_err("Invalid backend")?;
         if !self.settings.is_pkg_backend_enabled(backend) {
-            tracing::debug!("Skipping disabled package manager {}", package_manager);
+            tracing::debug!("Skipping disabled package manager {package_manager}");
             return Ok(());
         }
         if self
@@ -274,7 +272,7 @@ impl Commands {
         }
         let backend = Backend::from_str(package_manager).wrap_err("Invalid backend")?;
         if !self.settings.is_file_backend_enabled(backend) {
-            tracing::debug!("Skipping disabled package manager {}", package_manager);
+            tracing::debug!("Skipping disabled package manager {package_manager}");
             return Ok(());
         }
         if self
@@ -344,9 +342,9 @@ impl Commands {
         let contents = match contents {
             Ok(v) => v,
             Err(e) => {
-                tracing::error!("Failed to read file contents for '{}': {}", path, e);
+                tracing::error!("Failed to read file contents for '{path}': {e}");
                 return Err(
-                    eyre::eyre!("Failed to read file contents for '{}': {}", path, e).into(),
+                    eyre::eyre!("Failed to read file contents for '{path}': {e}").into(),
                 );
             }
         };
