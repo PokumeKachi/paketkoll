@@ -154,9 +154,7 @@ impl Commands {
 
         let search_path = PathBuf::from(search_dir);
         if !search_path.is_dir() {
-            return Err(
-                eyre::eyre!("The path {search_dir} must be an existing directory").into(),
-            );
+            return Err(eyre::eyre!("The path {search_dir} must be an existing directory").into());
         }
 
         // Build whitelist matchers.
